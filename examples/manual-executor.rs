@@ -3,7 +3,7 @@ use futures::{
     task::{waker_ref, ArcWake},
     Future,
 };
-use log::debug;
+use log::{debug, info};
 use simplelog::{Config, LevelFilter, SimpleLogger};
 use std::error::Error;
 use std::sync::mpsc;
@@ -54,6 +54,7 @@ struct Task {
 
 impl ArcWake for Task {
     fn wake_by_ref(arc_self: &Arc<Self>) {
+        info!("Trying to poll task after wake ...");
         let clone = arc_self.clone();
         arc_self
             .task_sender
@@ -95,6 +96,7 @@ impl Spawner {
 impl Executor {
     fn run(&self) {
         while let Ok(task) = self.ready_queue.recv() {
+            info!("Got a task");
             let mut future_slot = task.future.lock().unwrap();
             if let Some(mut future) = future_slot.take() {
                 let waker = waker_ref(&task);
