@@ -6,11 +6,20 @@ use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;
 use std::task::{Context, Poll};
+use std::thread;
+use std::time::Duration;
+use tokio::runtime::Builder;
 use tokio::sync::oneshot;
 use tokio::sync::Notify;
 
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn Error>> {
+fn main() {
+    let runtime = Builder::new_current_thread().build().unwrap();
+    runtime.block_on(async {
+        top().await.unwrap();
+    });
+}
+
+async fn top() -> Result<(), Box<dyn Error>> {
     SimpleLogger::init(LevelFilter::Debug, Config::default())?;
 
     // This is a channel, for sender to signal reciever that it sees flag to be true.
@@ -84,6 +93,11 @@ impl Future for Sender {
                     match Box::pin(notified).as_mut().poll(cx) {
                         Poll::Ready(()) => self.state.set(Done),
                         Poll::Pending => {
+                            let waker = cx.waker().clone();
+                            thread::spawn(move || {
+                                thread::sleep(Duration::from_millis(400));
+                                waker.wake_by_ref();
+                            });
                             return Poll::Pending;
                         }
                     };
